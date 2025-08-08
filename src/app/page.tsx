@@ -9,13 +9,15 @@ export default function HomePage() {
   const ws = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    ws.current = new WebSocket('ws://localhost:3000')
+    ws.current = new WebSocket('ws://localhost:3001')
     ws.current.onopen = () => {console.log('Websocket connected')}
-    ws.current.onclose = () => {console.log('Websocket connected')}
+    ws.current.onclose = () => {console.log('Websocket disconnected')}
 
-    ws.current.onmessage = (event) => {
-      const receivedMessage = event.data.toString();
-      setReceived((prev) => [...prev, receivedMessage])
+    ws.current.onmessage = async (event) => {
+      if(event.data instanceof Blob){
+        const receivedMessage = await event.data.text()
+        setReceived((prev) => [...prev, receivedMessage])
+      }
     }
     return () => {
       ws.current?.close();
