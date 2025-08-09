@@ -3,6 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRef } from 'react';
 
+const peerConnectionConfig = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ],
+};
 export default function HomePage() {
   const [message, setMessage] = useState('');
   const [received, setReceived] = useState<string[]>([]);
