@@ -42,6 +42,29 @@ export default function HomePage() {
     };
   },[])
 
+  const initiatePeerConnection = async () => {
+    peerConnection.current = new RTCPeerConnection(peerConnectionConfig)
+    peerConnection.current.onicecandidate = (event) => {
+      if (event.candidate) {
+        ws.current?.send(JSON.stringify({ type: 'candidate', candidate: event.candidate, roomId: localRoomId || roomId }));
+      }
+    };
+
+    // This listener handles the data channel created by the other peer
+    peerConnection.current.ondatachannel = (event) => {
+      dataChannel.current = event.channel;
+      setupDataChannelEvents();
+    };
+    
+    // Listen for connection state changes
+    peerConnection.current.onconnectionstatechange = () => {
+        if (peerConnection.current?.connectionState === 'connected') {
+            setIsConnected(true);
+            setStatusMessage('Connection established successfully!');
+        }
+    }
+  }
+
   const sendMessage = () => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN && message) {
       ws.current.send(message);
