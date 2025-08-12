@@ -15,18 +15,17 @@ export default function HomePage() {
   const ws = useRef<WebSocket | null>(null)
   const peerConnection = useRef<RTCPeerConnection | null>(null);
   const dataChannel = useRef<RTCDataChannel | null>(null);
+  const [roomId, setRoomId] = useState('');
+  const [localRoomId, setLocalRoomId] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [statusMessage, setStatusMessage] = useState('Welcome to PeerDrop!');
+   // Buffer for receiving file chunks
+   const receiveBuffer = useRef<ArrayBuffer[]>([]);
+   const receivedFileSize = useRef(0);
 
   useEffect(() => {
-    const [roomId, setRoomId] = useState('');
-    const [localRoomId, setLocalRoomId] = useState('');
-    const [isConnected, setIsConnected] = useState(false);
-    const [file, setFile] = useState<File | null>(null);
-    const [statusMessage, setStatusMessage] = useState('Welcome to PeerDrop!');
-
-    // Buffer for receiving file chunks
-    const receiveBuffer = useRef<ArrayBuffer[]>([]);
-    const receivedFileSize = useRef(0);
-
+  
     ws.current = new WebSocket('ws://localhost:3001')
     ws.current.onopen = () => {console.log('Websocket connected')}
     ws.current.onclose = () => {console.log('Websocket disconnected')}
