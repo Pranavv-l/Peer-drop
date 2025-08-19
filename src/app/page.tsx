@@ -64,6 +64,26 @@ export default function HomePage() {
     }
   }
 
+  const setupDataChannelEvents = () => {
+    if (!dataChannel.current) return
+    
+    dataChannel.current.onopen = () => {
+      console.log('Data Channel is open')
+    }
+    
+    dataChannel.current.onmessage = (event) => {
+      const {data} = event
+      
+    }
+  }
+
+  const createRoom = async () => {
+      await initiatePeerConnection()
+      dataChannel.current = peerConnection.current!.createDataChannel('fileTransfer')
+      setupDataChannelEvents()
+      ws.current?.send(JSON.stringify({ type: 'create-room' }));
+  }
+
   const sendMessage = () => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN && message) {
       ws.current.send(message);
