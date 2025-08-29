@@ -18,9 +18,9 @@ export default function HomePage() {
   const [roomId, setRoomId] = useState('');
   const [localRoomId, setLocalRoomId] = useState('');
   const [isConnected, setIsConnected] = useState(false);
+  const isRoomCreator = useRef(false);
   const [file, setFile] = useState<File | null>(null);
   const [statusMessage, setStatusMessage] = useState('Welcome to PeerDrop!');
-   // Buffer for receiving file chunks
   const receiveBuffer = useRef<ArrayBuffer[]>([]);
   const receivedFileSize = useRef(0);
 
@@ -31,11 +31,14 @@ export default function HomePage() {
     ws.current.onmessage = async (msg) => {
      const data = JSON.parse(msg.data)
 
-     if(!peerConnection){
+     if(!peerConnection  && (data.type === 'offer' || data.type === 'candidate')){
       await initiatePeerConnection()
      }
      switch(data.type){
       case 'offer':
+        if (!peerConnection.current) {
+          await initiatePeerConnection();
+        }
         setStatusMessage('Recived offer, preparing message')
         await peerConnection.current!.setRemoteDescription(new RTCSessionDescription(data.offer))
         const answer = await peerConnection.current!.createAnswer()
@@ -51,6 +54,9 @@ export default function HomePage() {
       
       case 'candidate':
         try {
+          if (!peerConnection.current) {
+            await initiatePeerConnection();
+          }
           await peerConnection.current!.addIceCandidate(new RTCIceCandidate(data.candidate));
         } catch (e) {
           console.error('Error adding received ice candidate', e);
@@ -63,9 +69,11 @@ export default function HomePage() {
         break;
 
       case 'room-joined':
-        await createOffer();
+        if(isRoomCreator.current){
+          await createOffer();
+        }
         break;
-        
+
       case 'error':
         setStatusMessage(`Error: ${data.message}`);
         break;
@@ -84,13 +92,11 @@ export default function HomePage() {
       }
     };
 
-    // This listener handles the data channel created by the other peer
     peerConnection.current.ondatachannel = (event) => {
       dataChannel.current = event.channel;
       setupDataChannelEvents();
     };
     
-    // Listen for connection state changes
     peerConnection.current.onconnectionstatechange = () => {
         if (peerConnection.current?.connectionState === 'connected') {
             setIsConnected(true);
@@ -138,6 +144,8 @@ export default function HomePage() {
   };
 
   const createRoom = async () => {
+    isRoomCreator.current = true
+
     await initiatePeerConnection()
     dataChannel.current = peerConnection.current!.createDataChannel('fileTransfer')
     setupDataChannelEvents()
@@ -145,6 +153,7 @@ export default function HomePage() {
   }
 
   const createOffer = async () => {
+    
     setStatusMessage('Creating offer')
     const offer = await peerConnection.current!.createOffer()
     await peerConnection.current!.setLocalDescription(offer)
@@ -189,20 +198,52 @@ export default function HomePage() {
   }
   
   return (
-    <main className="p-4">
-      <h1 className="text-xl font-bold">PeerDrop</h1>
-      <div className="my-4">
-        <input 
-        />
-        <button className="bg-blue-500 text-white p-2 rounded ml-2" 
-        onClick={sendFile}>
-          Send Message
-        </button>
-      </div>
-      <div>
-        <h2 className="font-bold">Received Messages:</h2>
-        <ul>
-        </ul>
+    <main className="flex flex-col items-center justify-center min-h-screen bg-[#faebd7] text-white p-4">
+      <div className="w-full max-w-md bg-[#d0dc7f] p-6 rounded-lg shadow-xl">
+        <h1 className="text-3xl text-[#381D2A] font-bold text-center  mb-2">PeerDrop</h1>
+        <p className="text-center text-[#381D2A] mb-6">Direct P2P File Transfer</p>
+
+        <div className="space-y-4">
+          <div>
+            <button onClick={createRoom} className="w-full bg-[#381D2A] hover:bg-[#26111b] text-white font-bold py-2 px-4 rounded transition-colors">
+              Create New Room
+            </button>
+            {localRoomId && <p className="text-center mt-2">Your Room ID: <strong className="text-[#051a0c]">{localRoomId}</strong></p>}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value)}
+              placeholder="Enter Room ID"
+              className="flex-grow bg-[#faebd7] border border-gray-600 rounded p-2 focus:outline-none focus:ring-2 text-black"
+            />
+            <button onClick={joinRoom} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition-colors">
+              Join
+            </button>
+          </div>
+        </div>
+
+        <div className="my-6 border-t border-gray-700"></div>
+        
+        {isConnected ? (
+          <div className="space-y-4">
+             <h2 className="text-xl font-semibold text-center">Connection Established!</h2>
+             <input type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"/>
+             <button onClick={sendFile} className="w-full bg-[#dcaf7f] hover:bg-[#36230f] text-white font-bold py-2 px-4 rounded transition-colors">
+               Send File
+             </button>
+          </div>
+        ) : (
+          <div className="text-center text-gray-500">
+            <p>Please create or join a room to connect.</p>
+          </div>
+        )}
+
+        <div className="mt-6 p-3 bg-gray-900 rounded text-center">
+            <p className="text-sm font-mono text-gray-300">Status: {statusMessage}</p>
+        </div>
       </div>
     </main>
   );
